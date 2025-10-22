@@ -133,6 +133,41 @@ You can try adjusting the following inference parameters to achieve better resul
 - `inference_steps` [20-50]: A higher value improves visual quality but slows down the generation speed.
 - `guidance_scale` [1.0-3.0]: A higher value improves lip-sync accuracy but may cause the video distortion or jitter.
 
+### 3. FastAPI Service
+
+This fork adds an HTTP service that exposes the same pipeline without a UI. Start it with:
+
+```bash
+uvicorn fastapi_app:app --host 0.0.0.0 --port 8080
+```
+
+Synchronous one-shot inference (returns the MP4 in the response):
+
+```bash
+curl -o synced.mp4 -X POST http://127.0.0.1:8080/sync \
+  -F video=@assets/dialogue_example.mp4 \
+  -F audio=@assets/tv-hochdeutsch_ddc.wav \
+  -F guidance_scale=1.5 \
+  -F inference_steps=20 \
+  -F seed=1247
+```
+
+Asynchronous job flow with progress polling:
+
+```bash
+JOB_ID=$(curl -s -X POST http://127.0.0.1:8080/jobs \
+  -F video=@assets/dialogue_example.mp4 \
+  -F audio=@assets/tv-hochdeutsch_ddc.wav \
+  -F guidance_scale=1.5 \
+  -F inference_steps=20 \
+  -F seed=1247 | jq -r '.job_id')
+
+curl http://127.0.0.1:8080/jobs/$JOB_ID        # {"status":"running","current_step":...,"step_total":...}
+curl -o synced.mp4 http://127.0.0.1:8080/jobs/$JOB_ID/result
+```
+
+The `GET /jobs/{job_id}` endpoint reports the diffusion step counter (`current_step`) and the fixed total number of steps (`step_total`), so clients can display progress bars while work is in flight.
+
 ## 🔄 Data Processing Pipeline
 
 The complete data processing pipeline includes the following steps:
