@@ -25,6 +25,7 @@ wandb/
 /venv/
 /detect_results/
 /temp
+.gradio/
 
 # checkpoint files
 *.safetensors

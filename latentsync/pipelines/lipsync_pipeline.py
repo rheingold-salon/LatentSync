@@ -329,6 +329,8 @@ class LipsyncPipeline(DiffusionPipeline):
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
         callback_steps: Optional[int] = 1,
+        progress_init_callback: Optional[Callable[[int], None]] = None,
+        progress_update_callback: Optional[Callable[[int], None]] = None,
         **kwargs,
     ):
         is_train = self.unet.training
@@ -385,6 +387,11 @@ class LipsyncPipeline(DiffusionPipeline):
         )
 
         num_inferences = math.ceil(len(whisper_chunks) / num_frames)
+        total_steps = num_inferences * num_inference_steps
+        if progress_init_callback is not None:
+            progress_init_callback(total_steps)
+
+        overall_step = 0
         for i in tqdm.tqdm(range(num_inferences), desc="Doing inference..."):
             if self.unet.add_audio_layer:
                 audio_embeds = torch.stack(whisper_chunks[i * num_frames : (i + 1) * num_frames])
@@ -447,6 +454,9 @@ class LipsyncPipeline(DiffusionPipeline):
                     # call the callback, if provided
                     if j == len(timesteps) - 1 or ((j + 1) > num_warmup_steps and (j + 1) % self.scheduler.order == 0):
                         progress_bar.update()
+                        overall_step += 1
+                        if progress_update_callback is not None:
+                            progress_update_callback(overall_step)
                         if callback is not None and j % callback_steps == 0:
                             callback(j, t, latents)
 

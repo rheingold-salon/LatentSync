@@ -14,6 +14,8 @@
 
 import argparse
 import os
+from typing import Callable, Optional
+
 from omegaconf import OmegaConf
 import torch
 from diffusers import AutoencoderKL, DDIMScheduler
@@ -24,7 +26,14 @@ from latentsync.whisper.audio2feature import Audio2Feature
 from DeepCache import DeepCacheSDHelper
 
 
-def main(config, args):
+def main(
+    config,
+    args,
+    progress_callback: Optional[Callable[[int, int, torch.FloatTensor], None]] = None,
+    callback_steps: int = 1,
+    progress_total_callback: Optional[Callable[[int], None]] = None,
+    progress_update_callback: Optional[Callable[[int], None]] = None,
+) -> None:
     if not os.path.exists(args.video_path):
         raise RuntimeError(f"Video path '{args.video_path}' not found")
     if not os.path.exists(args.audio_path):
@@ -98,6 +107,10 @@ def main(config, args):
         height=config.data.resolution,
         mask_image_path=config.data.mask_image_path,
         temp_dir=args.temp_dir,
+        callback=progress_callback,
+        callback_steps=callback_steps,
+        progress_init_callback=progress_total_callback,
+        progress_update_callback=progress_update_callback,
     )
 
 
